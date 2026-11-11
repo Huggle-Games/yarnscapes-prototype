@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f1ea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Yarn Prototype</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="board"></canvas>
+
+    <header id="topbar">
+      <div class="left">
+        <span id="version"></span>
+        <label class="level-pick">
+          <span id="level-label">–</span>
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <select id="level-select" aria-label="Level seç"></select>
+        </label>
+      </div>
+      <div class="right">
+        <button id="btn-fullscreen" class="icon" title="Tam ekran" aria-label="Tam ekran">
+          <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+        </button>
+        <button id="btn-peek" class="icon" title="Resmin aslını göster" aria-label="Resmin aslını göster">
+          <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button id="btn-reset" class="icon" title="Level'ı sıfırla" aria-label="Level'ı sıfırla">
+          <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="minimap-wrap"><canvas id="minimap"></canvas><div id="mini-view"></div></div>
+
+    <div id="progress"><span id="progress-text">0%</span></div>
+
+    <button id="btn-hint" title="İpucu" aria-label="İpucu">
+      <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>
+    </button>
+
+    <nav id="palette"></nav>
+
+    <div id="complete" hidden>
+      <div class="card">
+        <div class="title">Tamamlandı!</div>
+        <div class="sub" id="complete-sub"></div>
+        <div class="row">
+          <button id="btn-replay" class="ghost">Tekrar oyna</button>
+          <button id="btn-next">Sonraki level</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" hidden></div>
+  </div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

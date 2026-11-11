@@ -1,0 +1,16 @@
+{
+  "name": "yarnscapes-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "levels": "node scripts/build-level-index.mjs",
+    "dev": "npm run levels && vite",
+    "build": "npm run levels && tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  }
+}

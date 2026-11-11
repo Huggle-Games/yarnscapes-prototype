@@ -1,0 +1,62 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # Actions sekmesinden "Run workflow" ile elle tetiklenebilir
+  schedule:
+    - cron: "0 * * * *"     # Drive'daki yeni level'ları saatte bir çeker
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Drive klasör linkini oku
+        id: src
+        run: echo "url=$(node -p "require('./levels-source.json').driveFolderUrl || ''")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        if: steps.src.outputs.url != ''
+        with:
+          python-version: "3.12"
+
+      - name: Google Drive'dan level PNG'lerini indir
+        if: steps.src.outputs.url != ''
+        run: |
+          pip install --quiet gdown==5.2.0
+          gdown --folder "${{ steps.src.outputs.url }}" -O drive_levels --remaining-ok
+          find drive_levels -type f -iname '*.png' -exec cp {} public/levels/ \;
+          ls -la public/levels
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
