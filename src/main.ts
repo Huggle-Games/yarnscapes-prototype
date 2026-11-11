@@ -24,7 +24,7 @@ const levelLabel = $('level-label');
 const completeEl = $('complete');
 const toastEl = $('toast');
 
-$('version').textContent = `v${__APP_VERSION__} · ${__BUILD__}`;
+console.info(`Yarn Prototype v${__APP_VERSION__} · ${__BUILD__}`);
 
 // ---------- Durum ----------
 type LevelRef = { id: string; file: string };
@@ -125,6 +125,7 @@ async function openLevel(index: number) {
     toast(String((e as Error).message));
     return;
   }
+  stopAuto();
   level = lv;
   spriteCache.clear();
   anims = []; threadFx = null; shake = null; pulse = null; tween = null;
@@ -337,15 +338,54 @@ function hint() {
 
 function showComplete() {
   if (!level) return;
+  stopAuto();
   $('complete-sub').textContent = `Level ${level.id} · ${level.paintable} ilmek`;
   completeEl.hidden = false;
 }
 
 function resetLevel() {
   if (!level) return;
+  stopAuto();
   if (!confirm('Bu level\'daki ilerleme silinsin mi?')) return;
   store.del(progressKey(level.id));
   openLevel(levelIndex);
+}
+
+// ---------- Admin: otomatik tamamlama ----------
+// Butona basınca seçili renkten başlayarak kalan renkleri bölge bölge doldurur; tekrar basınca durur.
+let autoTimer = 0;
+const autoBtn = () => $('btn-auto');
+
+function stopAuto() {
+  if (autoTimer) clearTimeout(autoTimer);
+  autoTimer = 0;
+  autoBtn().classList.remove('on');
+}
+
+function autoStep() {
+  autoTimer = 0;
+  if (!level || filledCount === level.paintable) { stopAuto(); return; }
+  let pause = 0;
+  if (remaining[selected] === 0) {
+    const nc = nextColor(selected);
+    if (nc < 0) { stopAuto(); return; }
+    selectColor(nc);
+    pause = 350; // renk değişiminde kısa bir duraklama
+  }
+  let target = -1;
+  for (const i of colorCells[selected]) if (!filled[i]) { target = i; break; }
+  if (target >= 0) tapCell(target, performance.now());
+  // Kalan hücre sayısına göre hızlan: büyük resimler de makul sürede bitsin.
+  const left = level.paintable - filledCount;
+  const delay = clamp(left / 25, 40, 180) + pause;
+  autoTimer = window.setTimeout(autoStep, delay);
+}
+
+function toggleAuto() {
+  if (autoTimer) { stopAuto(); return; }
+  if (!level || filledCount === level.paintable) return;
+  autoBtn().classList.add('on');
+  autoStep();
 }
 
 // ---------- Kamera ----------
@@ -701,6 +741,7 @@ miniWrap.addEventListener('pointermove', (e) => { if (miniWrap.hasPointerCapture
 // ---------- Butonlar ----------
 $('btn-hint').addEventListener('click', hint);
 $('btn-reset').addEventListener('click', resetLevel);
+$('btn-auto').addEventListener('click', toggleAuto);
 $('btn-peek').addEventListener('click', () => {
   peek = !peek;
   $('btn-peek').classList.toggle('on', peek);
