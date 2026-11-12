@@ -20,13 +20,14 @@ Linkle belirli level açmak: `?level=10002`
 Level = şeffaf arka planlı pixel art PNG. Her opak piksel bir hücre, her farklı renk bir makara. Numaralar koyudan açığa sıralanır.
 
 1. **Google Drive:** `levels-source.json` içine herkese açık Drive klasör linkini yaz. GitHub Actions saatte bir (ya da Actions → "Build & Deploy" → *Run workflow* ile hemen) klasördeki PNG'leri indirip siteyi yeniden yayınlar. Dosya adı (uzantısız) level id'si olur. Not: indirme aracı (gdown) klasör başına en fazla 50 dosya çeker.
-2. **Oyun içinden (bulut butonu):** Drive klasörünü tarayıcıdan tarar, yeni level'ları listeye ekler, güncellenmişleri yeniler. Liste tarayıcıda hatırlanır. Bunun için bir Google Drive API anahtarı gerekir:
+2. **Bilgisayardan (yükle butonu ya da PNGyi pencereye sürükle-bırak):** Sadece o tarayıcıda görünür, listede "(yerel)" diye işaretlenir. Hızlı test için.
+3. **Oyun içinden (bulut butonu):** Drive klasörünü tarayıcıdan tarar, yeni level'ları listeye ekler, güncellenmişleri yeniler. Liste tarayıcıda hatırlanır. Bunun için bir Google Drive API anahtarı gerekir:
    - Google Cloud Console → yeni proje → *APIs & Services → Library* → **Google Drive API**'yi etkinleştir.
    - *Credentials → Create credentials → API key*. Anahtarı kısıtla: *Application restrictions → Websites* → `https://huggle-games.github.io/*`, *API restrictions* → Google Drive API.
    - GitHub repo → *Settings → Secrets and variables → Actions → New repository secret*: adı `DRIVE_API_KEY`.
    - Actions → Build & Deploy → *Run workflow*.
    Not: Anahtar sitenin JS'ine gömülür, bu yüzden mutlaka site adresi ve Drive API ile kısıtlanmalı. Sadece herkese açık dosyaları okuyabilir.
-3. **Repo:** PNG'yi `public/levels/` klasörüne koyup push'la.
+4. **Repo:** PNG'yi `public/levels/` klasörüne koyup push'la.
 
 ## Geliştirme
 ```bash

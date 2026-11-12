@@ -28,7 +28,7 @@ const toastEl = $('toast');
 console.info(`Yarn Prototype v${__APP_VERSION__} · ${__BUILD__}`);
 
 // ---------- Durum ----------
-type LevelRef = { id: string; file: string; url?: string; modified?: string };
+type LevelRef = { id: string; file: string; url?: string; modified?: string; local?: boolean };
 let baseLevels: LevelRef[] = [];   // siteyle birlikte yayınlanan level'lar
 let levelList: LevelRef[] = [];
 let levelIndex = 0;
@@ -104,17 +104,26 @@ async function loadLevelList() {
   baseLevels = json.levels as LevelRef[];
   let saved: DriveLevel[] = [];
   try { saved = JSON.parse(store.get(DRIVE_CACHE_KEY) || '[]'); } catch { /* yok say */ }
+  lastDrive = saved;
   levelList = mergeLevels(baseLevels, saved);
   renderLevelOptions();
 }
 
 const DRIVE_CACHE_KEY = 'yarnproto:v1:drive-levels';
+let lastDrive: DriveLevel[] = [];
 
-/** Drive'daki level'lar aynı id'li yerleşik level'ın yerine geçer, yeniler listeye eklenir. */
+// Bilgisayardan yüklenen level'lar (data URL olarak tarayıcıda saklanır)
+const LOCAL_KEY = 'yarnproto:v1:local-levels';
+type LocalLevel = { id: string; dataUrl: string };
+let localLevels: LocalLevel[] = [];
+try { localLevels = JSON.parse(store.get(LOCAL_KEY) || '[]'); } catch { localLevels = []; }
+
+/** Öncelik: yerel > Drive > yerleşik. Aynı id'li level'ın yerine geçer, yeniler listeye eklenir. */
 function mergeLevels(base: LevelRef[], drive: DriveLevel[]): LevelRef[] {
   const map = new Map<string, LevelRef>();
   for (const l of base) map.set(l.id, l);
   for (const d of drive) map.set(d.id, { id: d.id, file: d.id + '.png', url: driveFileUrl(d.fileId), modified: d.modified });
+  for (const l of localLevels) map.set(l.id, { id: l.id, file: l.id + '.png', url: l.dataUrl, local: true });
   return [...map.values()].sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
 }
 
@@ -123,7 +132,7 @@ function renderLevelOptions() {
   levelList.forEach((l, i) => {
     const o = document.createElement('option');
     o.value = String(i);
-    o.textContent = `${i + 1} / ${levelList.length}  ·  ${l.id}`;
+    o.textContent = `${i + 1} / ${levelList.length}  ·  ${l.id}${l.local ? '  (yerel)' : ''}`;
     levelSelect.appendChild(o);
   });
 }
@@ -797,6 +806,7 @@ $('btn-sync').addEventListener('click', async () => {
     const before = new Map(levelList.map((l) => [l.id, l.modified ?? '']));
     const currentId = levelList[levelIndex]?.id;
     store.set(DRIVE_CACHE_KEY, JSON.stringify(drive));
+    lastDrive = drive;
     levelList = mergeLevels(baseLevels, drive);
     renderLevelOptions();
     const added = drive.filter((d) => !before.has(d.id)).length;
@@ -858,3 +868,46 @@ document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS Saf
   const idx = Math.max(0, levelList.findIndex((l) => l.id === want));
   await openLevel(idx);
 })();
+
+// ---------- Bilgisayardan level yükleme ----------
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/png,.png';
+fileInput.multiple = true;
+fileInput.hidden = true;
+document.body.appendChild(fileInput);
+$('btn-upload').addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+fileInput.addEventListener('change', () => { if (fileInput.files?.length) importFiles([...fileInput.files]); });
+
+// Masaüstünde PNG'yi pencereye sürükleyip bırakmak da aynı işi yapar.
+window.addEventListener('dragover', (e) => { e.preventDefault(); });
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const files = [...(e.dataTransfer?.files ?? [])];
+  if (files.length) importFiles(files);
+});
+
+const readAsDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result));
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(f);
+});
+
+async function importFiles(files: File[]) {
+  const pngs = files.filter((f) => f.type === 'image/png' || /\.png$/i.test(f.name));
+  if (!pngs.length) { toast('Sadece PNG dosyaları yüklenebilir'); return; }
+  const ids: string[] = [];
+  for (const f of pngs) {
+    const id = f.name.replace(/\.png$/i, '');
+    const dataUrl = await readAsDataUrl(f);
+    localLevels = localLevels.filter((l) => l.id !== id).concat({ id, dataUrl });
+    store.del(progressKey(id)); // aynı isimle yeniden yüklenirse eski ilerleme geçersiz
+    ids.push(id);
+  }
+  store.set(LOCAL_KEY, JSON.stringify(localLevels));
+  levelList = mergeLevels(baseLevels, lastDrive);
+  renderLevelOptions();
+  toast(ids.length === 1 ? `Yüklendi: ${ids[0]}` : `${ids.length} level yüklendi`, 2000);
+  await openLevel(Math.max(0, levelList.findIndex((l) => l.id === ids[0])));
+}

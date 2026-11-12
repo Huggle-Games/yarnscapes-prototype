@@ -25,7 +25,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #topbar { position: absolute; left: 0; right: 0; top: 0; padding: calc(10px + var(--safe-t)) 12px 0;
   display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
 #topbar > * { pointer-events: auto; display: flex; gap: 8px; align-items: center; }
-.level-pick { position: relative; display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 15px;
+.level-pick { position: relative; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 15px;
   background: var(--panel); padding: 8px 10px; border-radius: 12px; box-shadow: 0 1px 4px rgba(60, 40, 30, .12); }
 .level-pick select { position: absolute; inset: 0; opacity: 0; width: 100%; font-size: 16px; cursor: pointer; }
 
@@ -101,3 +101,9 @@ body.phone-frame #btn-device .i-desktop { display: block; }
 #btn-auto .i-stop { display: none; }
 #btn-auto.on .i-play { display: none; }
 #btn-auto.on .i-stop { display: block; }
+@media (max-width: 360px) {
+  .icon { width: 32px; height: 32px; border-radius: 10px; }
+  .icon svg { width: 18px; height: 18px; }
+  #topbar > * { gap: 4px; }
+  .level-pick { padding: 6px 8px; font-size: 14px; }
+}
