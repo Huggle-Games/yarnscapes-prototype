@@ -1,5 +1,6 @@
 import { loadLevel, regionFrom, type Level } from './level';
 import { makeStitch, emptyFill, miniEmpty } from './stitch';
+import { driveReady, listDriveLevels, driveFileUrl, type DriveLevel } from './drive';
 
 // ---------- Ayarlar ----------
 const FILL_STEP_MAX_MS = 28;     // BFS adımı başına gecikme (üst sınır)
@@ -27,7 +28,8 @@ const toastEl = $('toast');
 console.info(`Yarn Prototype v${__APP_VERSION__} · ${__BUILD__}`);
 
 // ---------- Durum ----------
-type LevelRef = { id: string; file: string };
+type LevelRef = { id: string; file: string; url?: string; modified?: string };
+let baseLevels: LevelRef[] = [];   // siteyle birlikte yayınlanan level'lar
 let levelList: LevelRef[] = [];
 let levelIndex = 0;
 let level: Level | null = null;
@@ -79,8 +81,9 @@ function toast(msg: string, ms = 2200) {
 }
 
 function view() {
-  const top = (document.getElementById('topbar')!.getBoundingClientRect().bottom || 56) + 6;
-  const bottom = paletteEl.getBoundingClientRect().top - 6;
+  const cr = canvas.getBoundingClientRect();
+  const top = (document.getElementById('topbar')!.getBoundingClientRect().bottom - cr.top || 56) + 6;
+  const bottom = paletteEl.getBoundingClientRect().top - cr.top - 6;
   return { x: 0, y: top, w: W, h: Math.max(100, bottom - top) };
 }
 
@@ -98,7 +101,24 @@ async function loadLevelList() {
   const res = await fetch('levels/index.json', { cache: 'no-store' });
   if (!res.ok) throw new Error('levels/index.json okunamadı');
   const json = await res.json();
-  levelList = json.levels as LevelRef[];
+  baseLevels = json.levels as LevelRef[];
+  let saved: DriveLevel[] = [];
+  try { saved = JSON.parse(store.get(DRIVE_CACHE_KEY) || '[]'); } catch { /* yok say */ }
+  levelList = mergeLevels(baseLevels, saved);
+  renderLevelOptions();
+}
+
+const DRIVE_CACHE_KEY = 'yarnproto:v1:drive-levels';
+
+/** Drive'daki level'lar aynı id'li yerleşik level'ın yerine geçer, yeniler listeye eklenir. */
+function mergeLevels(base: LevelRef[], drive: DriveLevel[]): LevelRef[] {
+  const map = new Map<string, LevelRef>();
+  for (const l of base) map.set(l.id, l);
+  for (const d of drive) map.set(d.id, { id: d.id, file: d.id + '.png', url: driveFileUrl(d.fileId), modified: d.modified });
+  return [...map.values()].sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
+}
+
+function renderLevelOptions() {
   levelSelect.innerHTML = '';
   levelList.forEach((l, i) => {
     const o = document.createElement('option');
@@ -120,7 +140,7 @@ async function openLevel(index: number) {
 
   let lv: Level;
   try {
-    lv = await loadLevel('levels/' + encodeURIComponent(ref.file), ref.id);
+    lv = await loadLevel(ref.url ?? 'levels/' + encodeURIComponent(ref.file), ref.id);
   } catch (e) {
     toast(String((e as Error).message));
     return;
@@ -159,10 +179,7 @@ async function openLevel(index: number) {
   srcCanvas.width = lv.w; srcCanvas.height = lv.h;
   const sctx = srcCanvas.getContext('2d')!;
   miniCanvas.width = lv.w; miniCanvas.height = lv.h;
-  const box = window.innerWidth >= 700 ? 140 : 96;
-  const k = box / Math.max(lv.w, lv.h);
-  miniCanvas.style.width = Math.round(lv.w * k) + 'px';
-  miniCanvas.style.height = Math.round(lv.h * k) + 'px';
+  sizeMinimap();
   miniCtx.clearRect(0, 0, lv.w, lv.h);
   for (let i = 0; i < n; i++) {
     const c = lv.cells[i];
@@ -177,6 +194,14 @@ async function openLevel(index: number) {
   updateProgress();
   if (filledCount === lv.paintable) showComplete();
   dirty = true;
+}
+
+function sizeMinimap() {
+  if (!level) return;
+  const box = $('app').classList.contains('wide') ? 140 : 96;
+  const k = box / Math.max(level.w, level.h);
+  miniCanvas.style.width = Math.round(level.w * k) + 'px';
+  miniCanvas.style.height = Math.round(level.h * k) + 'px';
 }
 
 function nextColor(from: number): number {
@@ -439,6 +464,13 @@ function animateCameraTo(s1: number, c1: [number, number], dur: number) {
 // ---------- Çizim ----------
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 3);
+  // Telefon önizlemesi sadece geniş pencerelerde anlamlı
+  const canFrame = window.innerWidth >= 600;
+  $('btn-device').style.display = canFrame ? '' : 'none';
+  if (!canFrame) document.body.classList.remove('phone-frame');
+  const app = $('app');
+  app.classList.toggle('wide', app.clientWidth >= 700);
+  sizeMinimap();
   const r = canvas.getBoundingClientRect();
   const keep = level ? boardCenter() : null;
   const wasFit = level ? Math.abs(cam.s - fitScale) < 0.01 : true;
@@ -742,6 +774,47 @@ miniWrap.addEventListener('pointermove', (e) => { if (miniWrap.hasPointerCapture
 $('btn-hint').addEventListener('click', hint);
 $('btn-reset').addEventListener('click', resetLevel);
 $('btn-auto').addEventListener('click', toggleAuto);
+
+// Mobil / masaüstü görünüm geçişi (tercih tarayıcıda hatırlanır)
+const DEVICE_KEY = 'yarnproto:v1:phone-frame';
+if (store.get(DEVICE_KEY) === '1') document.body.classList.add('phone-frame');
+$('btn-device').addEventListener('click', () => {
+  const on = document.body.classList.toggle('phone-frame');
+  store.set(DEVICE_KEY, on ? '1' : '0');
+  toast(on ? 'Telefon görünümü' : 'Masaüstü görünümü', 1200);
+  resize();
+});
+
+// Drive'daki güncel level'ları al
+let syncing = false;
+$('btn-sync').addEventListener('click', async () => {
+  if (syncing) return;
+  if (!driveReady()) { toast('Drive bağlantısı kurulmamış (API anahtarı eksik)', 3500); return; }
+  syncing = true;
+  $('btn-sync').classList.add('busy');
+  try {
+    const drive = await listDriveLevels();
+    const before = new Map(levelList.map((l) => [l.id, l.modified ?? '']));
+    const currentId = levelList[levelIndex]?.id;
+    store.set(DRIVE_CACHE_KEY, JSON.stringify(drive));
+    levelList = mergeLevels(baseLevels, drive);
+    renderLevelOptions();
+    const added = drive.filter((d) => !before.has(d.id)).length;
+    const changed = drive.filter((d) => before.has(d.id) && before.get(d.id) !== '' && before.get(d.id) !== d.modified).length;
+    const idx = Math.max(0, levelList.findIndex((l) => l.id === currentId));
+    levelIndex = idx;
+    levelSelect.value = String(idx);
+    levelLabel.textContent = `${idx + 1} / ${levelList.length}`;
+    const cur = drive.find((d) => d.id === currentId);
+    if (cur && before.get(cur.id) !== cur.modified && before.get(cur.id) !== '') await openLevel(idx); // açık level Drive'da güncellendiyse yeniden yükle
+    toast(`Drive: ${drive.length} level · ${added} yeni${changed ? ` · ${changed} güncellendi` : ''}`, 3000);
+  } catch (e) {
+    toast(String((e as Error).message), 4000);
+  } finally {
+    syncing = false;
+    $('btn-sync').classList.remove('busy');
+  }
+});
 $('btn-peek').addEventListener('click', () => {
   peek = !peek;
   $('btn-peek').classList.toggle('on', peek);

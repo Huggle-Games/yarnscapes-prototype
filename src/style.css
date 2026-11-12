@@ -74,10 +74,27 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; max-width: 80vw; text-align: center; }
 #toast[hidden] { display: none; }
 
-@media (min-width: 700px) {
-  :root { --palette-h: 120px; }
-  #minimap { width: 140px; height: 140px; }
-  #palette { justify-content: safe center; }
+/* Geniş ekran düzeni (JS, #app genişliğine göre .wide ekler) */
+#app.wide { --palette-h: 120px; }
+#app.wide #palette { justify-content: safe center; }
+
+/* Masaüstünde telefon önizlemesi */
+body.phone-frame { background: #3a322d; }
+body.phone-frame #app { inset: auto; left: 50%; top: 50%; width: 390px; height: min(844px, calc(100vh - 32px));
+  transform: translate(-50%, -50%); border-radius: 30px; overflow: hidden; background: var(--bg);
+  box-shadow: 0 0 0 10px #15110f, 0 20px 60px rgba(0, 0, 0, .5); }
+#btn-device .i-desktop { display: none; }
+body.phone-frame #btn-device .i-phone { display: none; }
+body.phone-frame #btn-device .i-desktop { display: block; }
+
+#btn-sync.busy svg { animation: bob .8s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(3px); } }
+
+@media (max-width: 420px) {
+  .icon { width: 36px; height: 36px; border-radius: 11px; }
+  .icon svg { width: 20px; height: 20px; }
+  #topbar { padding-left: 8px; padding-right: 8px; }
+  #topbar > * { gap: 5px; }
 }
 #mini-view { position: absolute; border: 2px solid #18b6c9; border-radius: 2px; pointer-events: none;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }

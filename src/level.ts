@@ -17,7 +17,15 @@ export interface Level {
 const ALPHA_CUTOFF = 128;
 
 export async function loadLevel(url: string, id: string): Promise<Level> {
-  const img = await loadImage(url);
+  let objectUrl = '';
+  if (/^https?:/.test(url)) {
+    // Uzak dosya (Drive): getImageData için blob üzerinden yükle.
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Level indirilemedi: ${id} (HTTP ${res.status})`);
+    objectUrl = URL.createObjectURL(await res.blob());
+  }
+  let img: HTMLImageElement;
+  try { img = await loadImage(objectUrl || url); } finally { if (objectUrl) URL.revokeObjectURL(objectUrl); }
   const w = img.naturalWidth;
   const h = img.naturalHeight;
   const c = document.createElement('canvas');
