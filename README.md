@@ -11,7 +11,9 @@ Yün/ilmek temalı "sayıya göre boya" oyununun sadece gameplay içeren web pro
 - Sol üstteki minimap: tüm resmi ve ekranda görünen alanı gösterir, dokunarak/sürükleyerek o bölgeye gidilir.
 - Üst bar: level seçici, tam ekran, mobil/masaüstü görünüm (sadece geniş ekranda), Drive'dan güncel level'ları al, resmin aslını göster (göz), admin otomatik tamamlama, level'ı sıfırla.
 - Zoom: iki parmak (mobil) veya fare tekerleği. Kaydırma: tek parmak/fare ile sürükle.
-- İlerleme tarayıcıda (localStorage) level bazında saklanır.
+- Sol altta oyun süresi ve ilerleme yüzdesi. Süre sekme arka plandayken durur, level bitince donar ve bitiş ekranında gösterilir.
+- Bitiş ekranı X ile kapatılıp resim incelenmeye devam edilebilir.
+- İlerleme ve süre tarayıcıda (localStorage) level bazında saklanır.
 - Klavye: `h` ipucu, `0` ekrana sığdır, `Shift + ←/→` önceki/sonraki level.
 
 Linkle belirli level açmak: `?level=10002`

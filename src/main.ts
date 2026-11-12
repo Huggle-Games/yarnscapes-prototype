@@ -155,6 +155,7 @@ async function openLevel(index: number) {
     return;
   }
   stopAuto();
+  pauseTimer(); // önceki level'ın süresini kaydet
   level = lv;
   spriteCache.clear();
   anims = []; threadFx = null; shake = null; pulse = null; tween = null;
@@ -201,6 +202,10 @@ async function openLevel(index: number) {
   buildPalette();
   fitCamera();
   updateProgress();
+  elapsedMs = Number(store.get(timeKey(lv.id))) || 0;
+  timerStart = 0;
+  resumeTimer();
+  updateTimer();
   if (filledCount === lv.paintable) showComplete();
   dirty = true;
 }
@@ -353,7 +358,7 @@ function tapCell(i: number, now: number) {
     const nc = nextColor(c);
     window.setTimeout(() => { if (nc >= 0 && remaining[selected] === 0) selectColor(nc); }, Math.min(total, 900));
   }
-  if (filledCount === lv.paintable) window.setTimeout(showComplete, total + 300);
+  if (filledCount === lv.paintable) { pauseTimer(); updateTimer(); window.setTimeout(showComplete, total + 300); }
   dirty = true;
 }
 
@@ -374,6 +379,7 @@ function showComplete() {
   if (!level) return;
   stopAuto();
   $('complete-sub').textContent = `Level ${level.id} · ${level.paintable} ilmek`;
+  $('complete-time').textContent = formatTime(currentElapsed());
   completeEl.hidden = false;
 }
 
@@ -381,9 +387,61 @@ function resetLevel() {
   if (!level) return;
   stopAuto();
   if (!confirm('Bu level\'daki ilerleme silinsin mi?')) return;
-  store.del(progressKey(level.id));
+  clearLevelData(level.id);
   openLevel(levelIndex);
 }
+
+/** İlerlemeyi ve süreyi siler. */
+function clearLevelData(id: string) {
+  if (level && level.id === id) { timerStart = 0; elapsedMs = 0; }
+  store.del(progressKey(id));
+  store.del(timeKey(id));
+}
+
+// ---------- Süre ----------
+// Level açıkken ve bitmemişken sayar; sekme arka plandayken durur. Level başına tarayıcıda saklanır.
+const timeKey = (id: string) => `yarnproto:v1:time:${id}`;
+let elapsedMs = 0;
+let timerStart = 0; // çalışıyorsa performance.now() başlangıcı, değilse 0
+const timerEl = $('timer-text');
+
+const currentElapsed = () => elapsedMs + (timerStart ? performance.now() - timerStart : 0);
+
+function formatTime(ms: number) {
+  const t = Math.floor(ms / 1000);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function saveTime() {
+  if (level) store.set(timeKey(level.id), String(Math.round(currentElapsed())));
+}
+
+function pauseTimer() {
+  if (!level) return;
+  elapsedMs = currentElapsed();
+  timerStart = 0;
+  saveTime();
+}
+
+function resumeTimer() {
+  if (!level || timerStart || document.hidden || filledCount === level.paintable) return;
+  timerStart = performance.now();
+}
+
+let lastShown = '';
+function updateTimer() {
+  const txt = formatTime(currentElapsed());
+  if (txt !== lastShown) { timerEl.textContent = txt; lastShown = txt; }
+}
+let saveTick = 0;
+window.setInterval(() => {
+  updateTimer();
+  if (timerStart && ++saveTick % 20 === 0) saveTime(); // ~5 sn'de bir kaydet
+}, 250);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else resumeTimer(); });
+window.addEventListener('pagehide', saveTime);
 
 // ---------- Admin: otomatik tamamlama ----------
 // Butona basınca seçili renkten başlayarak kalan renkleri bölge bölge doldurur; tekrar basınca durur.
@@ -843,7 +901,8 @@ fsBtn.addEventListener('click', async () => {
 document.addEventListener('fullscreenchange', () => fsBtn.classList.toggle('on', !!document.fullscreenElement));
 levelSelect.addEventListener('change', () => openLevel(Number(levelSelect.value)));
 $('btn-next').addEventListener('click', () => openLevel(levelIndex + 1));
-$('btn-replay').addEventListener('click', () => { if (level) { store.del(progressKey(level.id)); openLevel(levelIndex); } });
+$('btn-replay').addEventListener('click', () => { if (level) { clearLevelData(level.id); openLevel(levelIndex); } });
+$('btn-close-complete').addEventListener('click', () => { completeEl.hidden = true; });
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'h') hint();
@@ -902,7 +961,7 @@ async function importFiles(files: File[]) {
     const id = f.name.replace(/\.png$/i, '');
     const dataUrl = await readAsDataUrl(f);
     localLevels = localLevels.filter((l) => l.id !== id).concat({ id, dataUrl });
-    store.del(progressKey(id)); // aynı isimle yeniden yüklenirse eski ilerleme geçersiz
+    clearLevelData(id); // aynı isimle yeniden yüklenirse eski ilerleme ve süre geçersiz
     ids.push(id);
   }
   store.set(LOCAL_KEY, JSON.stringify(localLevels));

@@ -49,7 +49,10 @@
 
     <div id="minimap-wrap"><canvas id="minimap"></canvas><div id="mini-view"></div></div>
 
-    <div id="progress"><span id="progress-text">0%</span></div>
+    <div id="progress">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2.5h4"/></svg>
+      <span id="timer-text">00:00</span><span class="sep"></span><span id="progress-text">0%</span>
+    </div>
 
     <button id="btn-hint" title="İpucu" aria-label="İpucu">
       <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>
@@ -59,7 +62,11 @@
 
     <div id="complete" hidden>
       <div class="card">
+        <button id="btn-close-complete" class="close" title="Kapat" aria-label="Kapat">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
         <div class="title">Tamamlandı!</div>
+        <div class="time"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2.5h4"/></svg><span id="complete-time">00:00</span></div>
         <div class="sub" id="complete-sub"></div>
         <div class="row">
           <button id="btn-replay" class="ghost">Tekrar oyna</button>
